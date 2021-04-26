@@ -1,4 +1,4 @@
-# vue-sandbox
+# modal-project
 
 ## Project setup
 ```
