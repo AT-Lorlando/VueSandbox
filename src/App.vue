@@ -1,18 +1,33 @@
 <template>
   <h1>{{ title }}</h1>
   <p>Welcome...</p>
-  <Modal />
+  <div v-if="showModal">
+    <Modal theme="sale" @close="toggleModal">
+      <template v-slot:links>
+        <a href="#">sign up now</a>
+        <a href="#">more info</a>
+      </template>
+      <h1>Ninja Givaway!</h1>
+      <p>Grab your ninja swag for half price!</p>
+    </Modal>
+  </div>  
+  <button @click.alt="toggleModal">open modal (alt click)</button>
 </template>
 
 <script>
 import Modal from './components/Modal'
-
 export default {
   name: 'App',
   components: { Modal },
   data() {
     return {
-      title: 'My First Vue App!'
+      title: 'My First Vue App!',
+      showModal: false,
+    }
+  },
+  methods: {
+    toggleModal() {
+      this.showModal = !this.showModal
     }
   }
 }
