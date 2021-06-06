@@ -1,18 +1,17 @@
 <template>
-  <h1>{{ title }}</h1>
   <div class="box">
-    <Stream>
+    <Stellar>
       
-    </Stream>
+    </Stellar>
   </div>
 </template>
 
 <script>
-import Stream from './components/Stream'
+import Stellar from './components/Stellar'
 
 export default {
   name: 'App',
-  components: { Stream },
+  components: { Stellar },
   data() {
     return {
       title: 'My First Vue App!',

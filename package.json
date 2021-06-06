@@ -12,12 +12,13 @@
     "lint": "^0.7.0",
     "mysql2": "^2.2.5",
     "socket.io": "^4.0.1",
+    "stats-js": "^1.0.1",
     "three": "^0.128.0",
     "vue": "^3.0.0-0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",
     "@vue/cli-service": "~4.5.0",
-    "@vue/compiler-sfc": "^3.0.0-0"
+    "@vue/compiler-sfc": "^3.0.11"
   }
 }
