@@ -1,20 +1,26 @@
 <template>
   <div class="box">
-    <Stellar>
-      
-    </Stellar>
+    <Stellar />
+    <Star :x="x" :y="y" />
   </div>
 </template>
 
 <script>
 import Stellar from './components/Stellar'
+import Star from './components/Star'
 
 export default {
   name: 'App',
-  components: { Stellar },
-  data() {
+  components: { Stellar, Star },
+  data() { 
     return {
-      title: 'My First Vue App!',
+      x: false,
+      y: "Allo",
+    }
+  },
+  methods: {
+    changeX() {
+      x=!x;
     }
   }
 }
@@ -27,7 +33,6 @@ export default {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
 }
 h1 {
   border-bottom: 1px solid #ddd;

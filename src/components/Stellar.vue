@@ -1,5 +1,6 @@
 <template>
   <div id="container">
+    <!-- <div v-if="page" id="info">Description</div> -->
   </div>
 </template>
 
@@ -7,31 +8,34 @@
 import * as THREE from 'three';
 import Stats from 'stats-js';
 import { OrbitControls } from './OrbitControl.js';
+import { rotateAroundObjectAxis } from './RotateAround.js';
+import { changeX } from '../App.vue'
 
 const CAMERA_DIST = 3000
-
-var controls;
 
 let SCREEN_WIDTH = window.innerWidth;
 let SCREEN_HEIGHT = window.innerHeight;
 let aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
-let mouseX = 0, mouseY = 0, clicked = false;
+let clicked = false, page = false;
+
+let cameraUpdater = []
 
 let container, stats;
-let camera, scene, renderer, activeCamera, cameraDebug;
-let activeStar, toStar = null, count=0;
-let extoStar;
+let scene, renderer;
+let activeStar, toStar = null, extoStar, count=0;
 
-let starTab = [], meshTab = [];
+let starTab = [], meshTab = [], cameraTab = [], satelliteTab = [];
 let sun, starPassion, starSkill, starDegree, starCamera;
-let satelliteTab = [];
 let satelliteSkillCampus;
 
-let cameraBis, cameraTierce;
-let cameraHelper, cameraBisHelper, cameraTierceHelper;
+let camera, cameraTraveler, cameraLock, activeCamera, cameraDebug;
+let cameraHelper, cameraTravelerHelper, cameraLockHelper;
 const frustumSize = 600;
 
-var rotWorldMatrix, rotObjectMatrix;
+var controls;
+
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
 
 /* Star object 
   dist = distance with the sun
@@ -55,11 +59,10 @@ class Star {
 
     this.mesh=new THREE.Mesh(
       new THREE.SphereGeometry( this.height, 8, 8 ),
-      new THREE.MeshBasicMaterial( { color: this.clr, wireframe: false } )
+      new THREE.MeshBasicMaterial( { color: this.clr, wireframe: true } )
     );
 
     // this.mesh.geometry.computeBoundingSphere();
-
 
     this.orbit = new THREE.Line(
       new THREE.EdgesGeometry(
@@ -128,6 +131,7 @@ class Star {
 	}
 };
 
+/* Initial settings for a threeD world*/
 scene = new THREE.Scene();
 const axesHelper = new THREE.AxesHelper( 1000 );
 scene.add( axesHelper );
@@ -144,32 +148,50 @@ renderer.autoClear = false;
 stats = new Stats();
 container.appendChild( stats.dom );
 
-camera = new THREE.PerspectiveCamera( 50, aspect, 45, 50000 );
-controls = new OrbitControls( camera, renderer.domElement );
-// controls.autoRotate = true;
-
-starInit();
-backgroundInit();
-cameraInit();
-animate();
-
-activeCamera = camera;
-cameraDebug.lookAt( sun.mesh.position )
-
-camera.lookAt( sun.mesh.position )
-
-let raycaster = new THREE.Raycaster();
-let mouse = new THREE.Vector2();
 
 // Add event listeners
+window.addEventListener("keydown", onKeyDown, false);
 document.addEventListener("pointerdown", onPointerDown, false);
 // document.addEventListener("pointermove", onPointerHover, false);
 document.addEventListener("pointermove", onPointerMove, false);
 // document.addEventListener("pointerup", onPointerUp, false);
 window.addEventListener( 'resize', onWindowResize );
 
+starInit();
+backgroundInit();
+cameraInit();
+animate();
+
+function reset() {
+  cameraTab.forEach(cam => {
+    scene.remove(cam)        
+    });
+  cameraInit();
+  cameraUpdater = []
+  controls = new OrbitControls( camera, renderer.domElement );
+}
+
 function onKeyDown( event ) {
-  console.log('Key Down');
+  switch (event.keyCode) {
+    case 27:
+      reset();
+      break;
+    case 65:
+      changeX()
+      // console.log(page)
+      break;
+    case 79:
+      toStar = starSkill;
+      break;
+    case 80:
+      activeCamera = cameraTab[(cameraTab.indexOf(activeCamera)+1)%cameraTab.length]
+      console.log(activeCamera.name)
+      break;
+  
+    default:
+      console.log(event.keyCode)
+      break;
+  }
 }
 
 function onPointerDown( event ) {
@@ -201,31 +223,43 @@ function onPointerHover( event )
 
 function cameraInit() {
   // Adding camera
+  cameraTab = [
+    camera = new THREE.PerspectiveCamera( 50, aspect, 45, 50000 ),
+    cameraTraveler = new THREE.PerspectiveCamera( 50, aspect, 150, 5000 ),
+    cameraLock = new THREE.PerspectiveCamera( 50, aspect, 150, 5000 ),
+    cameraDebug = new THREE.PerspectiveCamera( 50, aspect, 1, 10000 )
+  ]
+
+  camera.name = "Principal camera"
+  cameraTraveler.name = "Traveling camera"
+  cameraLock.name = "Locked view camera"
+  cameraDebug.name = "Debuging camera"
+  
   camera.position.z = CAMERA_DIST*Math.cos(25 * (Math.PI/180));
-  camera.position.y = CAMERA_DIST*Math.sin(25 * (Math.PI/180));  
-
-  cameraDebug = new THREE.PerspectiveCamera( 50, aspect, 1, 10000 );
+  camera.position.y = CAMERA_DIST*Math.sin(25 * (Math.PI/180));
+  controls = new OrbitControls( cameraDebug, renderer.domElement );
+  // controls.autoRotate = true; 
   cameraDebug.position.z = CAMERA_DIST*2*Math.cos(45 * (Math.PI/180));
-  // cameraDebug.position.y = CAMERA_DIST*2*Math.sin(45 * (Math.PI/180));
+  cameraDebug.position.y = CAMERA_DIST*2*Math.sin(45 * (Math.PI/180));
+  cameraTraveler.position.z = 500;
+  cameraTraveler.position.y = 500;
+  cameraLock.position.z = 500;
+  cameraLock.position.y = 500;
 
-  cameraBis = new THREE.PerspectiveCamera( 50, aspect, 150, 1000 );
-  cameraBis.position.z = 500;
-  cameraBis.position.y = 0;
+  scene.add( cameraTraveler );
+  scene.add( cameraLock );
 
-  cameraTierce = new THREE.PerspectiveCamera( 50, aspect, 150, 1000 );
-  cameraTierce.position.z = 500;
-  cameraTierce.position.y = 0;
 
-  scene.add( cameraBis );
+  activeCamera = camera;
+  cameraDebug.lookAt( sun.mesh.position )
+  camera.lookAt( sun.mesh.position )
 
-  cameraHelper = new THREE.CameraHelper( camera );
-  scene.add( cameraHelper );
-
-  // cameraBisHelper = new THREE.CameraHelper( cameraBis );
-  // scene.add( cameraBisHelper );
-
-  // cameraTierceHelper = new THREE.CameraHelper( cameraTierce );
-  // scene.add( cameraTierceHelper );
+  // cameraHelper = new THREE.CameraHelper( camera );
+  // scene.add( cameraHelper );
+  // cameraTravelerHelper = new THREE.CameraHelper( cameraTraveler );
+  // scene.add( cameraTravelerHelper );
+  // cameraLockHelper = new THREE.CameraHelper( cameraLock );
+  // scene.add( cameraLockHelper );
 }
 
 function starInit() {
@@ -292,50 +326,62 @@ function speed(dist) {
 }
 
 /*This function pick a camera and a target star, calcul the distance between them and launch the
-cameraBis on a traveling to the target star position*/
+cameraTraveler on a traveling to the target star position*/
 function Transition(camera, toStar, r) {
-
-  let xDist = toStar.mesh.position.x-camera.position.x, yDist = toStar.mesh.position.y-camera.position.y;
-
-  if((toStar == extoStar || extoStar==null) //If the target the same target as the old iteration of the function -> going on the same travel
+  console.log('Transition')
+  if(!extoStar) { //First dt where the transition is hapening
+    console.log("Yes")
+    setPos(cameraTraveler, activeCamera)
+    activeCamera = cameraTraveler
+    
+    extoStar = toStar
+    
+    return 1
+  } 
+  else {
+    let xDist = toStar.mesh.position.x-cameraTraveler.position.x, zDist = toStar.mesh.position.z-cameraTraveler.position.z;
+    
+    if((toStar == extoStar) //If the target the same target as the old iteration of the function -> going on the same travel
     && (Math.abs(xDist) > (toStar.dist? toStar.dist*toStar.orbitalSpeed/75 : 10) 
-    || Math.abs(yDist) >  (toStar.dist? toStar.dist*toStar.orbitalSpeed/75 : 10)) //If the camera position is near to the target star
+    || Math.abs(zDist) >  (toStar.dist? toStar.dist*toStar.orbitalSpeed/75 : 10)) //If the camera position is near to the target star
     ) {
+    activeCamera.lookAt ( toStar.mesh.position )
     extoStar = toStar;
-
     //Approching the targeted position with a preshoot of the the path
-    camera.position.x += speed(xDist)+ (toStar.dist* Math.cos( (r+0.003) * toStar.orbitalSpeed)-camera.position.x)*0.08 
-    camera.position.y += speed(yDist)+ (toStar.dist* Math.sin( (r+0.003) * toStar.orbitalSpeed)-camera.position.y)*0.08
+    cameraTraveler.position.x += speed(xDist)+ (toStar.dist* Math.sin( (r+0.003) * toStar.orbitalSpeed)-cameraTraveler.position.x)*0.08 
+    cameraTraveler.position.z += speed(zDist)+ (toStar.dist* Math.cos( (r+0.003) * toStar.orbitalSpeed)-cameraTraveler.position.z)*0.08
     return 1;
   }
   else { //Travel finished
-    //Linking the cameraTierce to the targeted star
-    scene.remove( toStar.mesh )
-    toStar.mesh.add( cameraTierce )
-    scene.add ( toStar.mesh )
+    cameraUpdater.push({camera: cameraLock, star: toStar})
+    controls = new OrbitControls( cameraLock, renderer.domElement );
+
+    // setPos(cameraLock, cameraTraveler)
+    // cameraLock.lookAt(toStar.mesh.position)
+    //Linking the cameraLock to the targeted star
+    // scene.remove( toStar.mesh )
+    // toStar.mesh.add( cameraLock )
+    // scene.add( toStar.mesh )
     //reset the camera position
-    camera.position.x = 0
-    camera.position.y = 0
+    // cameraTraveler.position.x = 0
+    // cameraTraveler.position.y = 0
+    // cameraTraveler.position.z = 0
     extoStar = null;
-    activeCamera = cameraTierce
+    activeCamera = cameraLock
     return 0;
+  }}
+}
+
+function setPos(from, to, all = true) {
+  if(all) {
+    from.position.x = to.position.x
+    from.position.y = to.position.y
+    from.position.z = to.position.z
+  } else {
+    from.position.x = to.position.x
+    from.position.y = CAMERA_DIST
+    from.position.z = to.position.z
   }
-}
-
-function rotateAroundObjectAxis(object, axis, radians) {
-    rotObjectMatrix = new THREE.Matrix4();
-    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
-    object.matrix.multiply(rotObjectMatrix);
-    object.rotation.setFromRotationMatrix(object.matrix);
-}
-
-// Rotate an object around an arbitrary axis in world space       
-function rotateAroundWorldAxis(object, axis, radians) {
-    rotWorldMatrix = new THREE.Matrix4();
-    rotWorldMatrix.makeRotationAxis(axis.normalize(), radians);
-    rotWorldMatrix.multiply(object.matrix);
-    object.matrix = rotWorldMatrix;
-    object.rotation.setFromRotationMatrix(object.matrix);
 }
 
 function onWindowResize() {
@@ -349,18 +395,20 @@ function onWindowResize() {
   camera.aspect = aspect;
   camera.updateProjectionMatrix();
 
-  cameraBis.aspect = aspect;
-  cameraBis.updateProjectionMatrix();
+  cameraTraveler.aspect = aspect;
+  cameraTraveler.updateProjectionMatrix();
 }
 
 function meshclicked( mesh ) {
   switch (mesh) {
     case sun.mesh:
       console.log('Sun mesh')
+      toStar = sun
       
       break;
     case starSkill.mesh:
       console.log("Star skill")
+      toStar = starSkill
 
       break;
       
@@ -396,12 +444,18 @@ function render() {
   /* Launching Transition if a target is selected by a event listener
     If it does, when the Transition is finished, settings the old parameters to null and
     the activeCamera become the Camera linked to the targeted star */
-  if (!(toStar && Transition(cameraBis, toStar, r))) {
+  if (!(toStar && Transition(camera, toStar, r))) {
     activeStar = toStar ? toStar : activeStar
     toStar = null;
     extoStar = null;
+    
   }
 
+  if (cameraUpdater.length > 0) {
+    console.log('Locked')
+    setPos(cameraUpdater[0].camera, cameraUpdater[0].star.mesh, false)
+    cameraUpdater[0].camera.lookAt(cameraUpdater[0].star.mesh.position)  
+  }
 
   renderer.clear();
   renderer.setViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -412,6 +466,7 @@ function render() {
 
 export default {
   name: 'Stellar',
+  props: ['pageShow'],
   data() {
     return {
     }
@@ -422,5 +477,12 @@ export default {
 </script>
 
 <style>
-
+#info {
+	position: absolute;
+	top: 10px;
+	width: 100%;
+	text-align: center;
+	z-index: 100;
+	display:block;
+}
 </style>
