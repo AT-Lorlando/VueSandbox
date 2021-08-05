@@ -1,27 +1,26 @@
 <template>
   <div class="box">
-    <Stellar />
-    <Star :x="x" :y="y" />
+  <Flag />    
   </div>
 </template>
 
 <script>
-import Stellar from './components/Stellar'
-import Star from './components/Star'
+import Flag from './components/Flag'
+// import Particles from './components/Particles'
+
+// import Particles from './components/Particles.vue'
+
+// import Flag from './components/Flag'
+
 
 export default {
   name: 'App',
-  components: { Stellar, Star },
+  components: { Flag },
   data() { 
     return {
-      x: false,
-      y: "Allo",
     }
   },
   methods: {
-    changeX() {
-      x=!x;
-    }
   }
 }
 </script>
