@@ -11,18 +11,6 @@ import { GUI } from 'dat.gui';
 
 import { OrbitControls } from './OrbitControl.js';
 
-/*
- * Cloth Simulation using a relaxed constraints solver
-*/
-
-// Suggested Readings
-
-// Advanced Character Physics by Thomas Jakobsen Character
-// http://freespace.virgin.net/hugo.elias/models/m_cloth.htm
-// http://en.wikipedia.org/wiki/Cloth_modeling
-// http://cg.alexandra.dk/tag/spring-mass-system/
-// Real-time Cloth Animation http://www.darwin3d.com/gamedev/articles/col0599.pdf
-
 const params = {
   enableWind: true,
   showBall: false,
@@ -208,8 +196,8 @@ class Cloth {
     }
 
     this.index = index;
-
   }
+
 
 }
 
@@ -217,8 +205,8 @@ function plane( width, height ) {
 
   return function ( u, v, target ) {
 
-    const x = ( u - 0.5 ) * width;
-    const y = ( v + 0.5 ) * height;
+    const x = ( v - 0.5 ) * width;
+    const y = ( u + 0.5 ) * height;
     const z = 0;
 
     target.set( x, y, z );
@@ -242,12 +230,12 @@ function satisfyConstraints( p1, p2, distance ) {
 function simulate( now ) {
 
   // const windStrength = Math.abs(Math.cos( now / 7000 ) * 20 + 100);
-  // const windStrength = Math.abs(Math.cos( now / 7000 ) * 200);
-  const windStrength = 100
+  const windStrength = Math.abs(Math.cos( now / 7000 ) * 250);
+  // const windStrength = 250
 
 
 
-  windForce.set( 1, 1, 1);
+  windForce.set( 1, 0.1, 0.1);
   windForce.normalize();
   windForce.multiplyScalar( windStrength );
 
@@ -329,13 +317,13 @@ function simulate( now ) {
 const cloth = new Cloth( xSegs, ySegs );
 const pinsFormation = [];
 
-pins = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]; //stable
+pins = [ 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 110 ]; //stable
 pinsFormation.push( pins );
 
-pins = []; //Bye lel
-pinsFormation.push( pins );
+// pins = []; //Bye lel
+// pinsFormation.push( pins );
 
-pins = [ 0, cloth.w ]; //2 Pins, more classical ?
+pins = [ 0, cloth.h*11 ]; //2 Pins, more classical ?
 pinsFormation.push( pins );
 
 pins = pinsFormation[ 0 ];
@@ -350,10 +338,14 @@ let container, stats;
 let camera, scene, renderer;
 
 let clothGeometry;
-let object;
+let object
+let pole
 
 let windowHalfX = window.innerWidth / 2;
 let windowHalfY = window.innerHeight / 2;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
 
 
@@ -362,6 +354,10 @@ animate( 0 );
 
 const axesHelper = new THREE.AxesHelper( 100 );
 scene.add( axesHelper );
+
+window.addEventListener( 'mousemove', onMouseMove, false );
+
+window.requestAnimationFrame(render);
 
 function init() {
 
@@ -372,7 +368,7 @@ function init() {
 
   scene = new THREE.Scene();
   // scene.background = new THREE.Color( 0xcce0ff );
-  scene.background = new THREE.Color( 0x02CBFE );
+  scene.background = new THREE.Color( 0xcce0ff );
 
   scene.fog = new THREE.Fog( 0xcce0ff, 500, 10000 );
 
@@ -408,10 +404,7 @@ function init() {
 
   
   // const clothTexture = loader.load( './circuit_pattern.png' ,
-  const clothTexture = new THREE.TextureLoader().load(flag,
-  function ( err ) {
-		console.error( 'An error happened.' );
-	});
+  const clothTexture = new THREE.TextureLoader().load(flag)
   clothTexture.anisotropy = 16;
 
   const clothMaterial = new THREE.MeshLambertMaterial( {
@@ -437,10 +430,10 @@ function init() {
   } );
 
 // ground
-  const ground = require('@/assets/grasslight-big.jpg')
+  const ground = require('@/assets/grasslight-big5.jpg')
   const groundTexture = new THREE.TextureLoader().load(ground);
   groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-  groundTexture.repeat.set( 25, 25 );
+  groundTexture.repeat.set( 150, 150 );
   groundTexture.anisotropy = 16;
   groundTexture.encoding = THREE.sRGBEncoding;
   const groundMaterial = new THREE.MeshLambertMaterial( { map: groundTexture } );
@@ -461,12 +454,12 @@ function init() {
   const headGeo = new THREE.SphereGeometry( 5, 20, 20 );
   const headMat = new THREE.MeshLambertMaterial( {color: new THREE.Color( 0x000000 )} );
 //Pole
-  mesh = new THREE.Mesh( poleGeo, poleMat );
-  mesh.position.x = 0;
-  mesh.position.y = poleHeight/2;
-  mesh.receiveShadow = true;
-  mesh.castShadow = true;
-  scene.add( mesh );
+  pole = new THREE.Mesh( poleGeo, poleMat );
+  pole.position.x = 0;
+  pole.position.y = poleHeight/2;
+  pole.receiveShadow = true;
+  pole.castShadow = true;
+  scene.add( pole );
 //Foot
   mesh = new THREE.Mesh( footGeo, footMat );
   mesh.position.x = 0;
@@ -483,7 +476,7 @@ function init() {
   scene.add( mesh );
 //Focus point
   const Focuspoint = new THREE.Mesh( headGeo, new THREE.MeshLambertMaterial( {color: new THREE.Color( 0xff0000 )} ) );
-  Focuspoint.position.x = xSegs*ratio*restDistance/2;
+  Focuspoint.position.x = xSegs*ratio*restDistance/3;
   Focuspoint.position.y = poleHeight-ySegs*restDistance;
   Focuspoint.receiveShadow = true;
   Focuspoint.castShadow = true;
@@ -532,6 +525,16 @@ function onWindowResize() {
 
 }
 
+function onMouseMove( event ) {
+
+	// calculate mouse position in normalized device coordinates
+	// (-1 to +1) for both components
+
+	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+}
+
 //
 
 function animate( now ) {
@@ -556,6 +559,22 @@ function windSimulation( p ) {
 function render() {
 
   windSimulation(cloth.particles)  
+
+  	raycaster.setFromCamera( mouse, camera );
+
+	// calculate objects intersecting the picking ray
+	const intersects = raycaster.intersectObjects( scene.children );
+
+  if(intersects[0]?.object == object)
+  {
+    pole.material.color.set( 0xff0000 )    
+  }
+  else {
+     pole.material.color.set( 0xafafff )
+  }
+  
+
+	renderer.render( scene, camera );
 
   renderer.render( scene, camera );
 
